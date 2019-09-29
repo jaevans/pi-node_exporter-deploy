@@ -1,0 +1,55 @@
+- hosts: all
+
+  vars:
+    version: 0.18.1
+    dest_path: /opt/node_exporter
+
+  tasks:
+    - name: Find ARM version
+      set_fact:
+        arm_version: "{{ ansible_facts.architecture | regex_replace('(.*)l$', '\\1') }}"
+        
+    - debug:
+        var: arm_version
+    
+    - name: Uncompress Node Exporter
+      become: true
+      unarchive:
+        remote_src: true
+        src: https://github.com/prometheus/node_exporter/releases/download/v{{ version }}/node_exporter-{{ version }}.linux-{{ arm_version }}.tar.gz
+        dest: /opt/
+        creates: /opt/node_exporter-{{ version }}.linux-{{ arm_version }}
+      register: uncompress_result
+      
+    - name: Create versionless symlink
+      become: true
+      file:
+        src: /opt/node_exporter-{{ version }}.linux-{{ arm_version }}
+        path: "{{ dest_path }}"
+        state: link
+      when: uncompress_result is changed
+
+    - name: Create systemd unit
+      become: true
+      template:
+        src: templates/node_exporter.service.j2
+        dest: /etc/systemd/system/node_exporter.service
+        owner: root
+        group: root
+        mode: '0644'
+        force: true
+      register: system_register
+
+    - name: Reload systemd
+      become: true
+      command: systemctl daemon-reload
+      when: system_register is changed
+
+    - name: Manage service
+      become: true
+      service:
+        name: node_exporter
+        state: restarted
+        enabled: true
+      when: (system_register is changed) or (uncompress_result is changed)
+

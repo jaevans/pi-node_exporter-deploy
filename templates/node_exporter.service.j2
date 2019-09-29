@@ -1,0 +1,9 @@
+[Unit]
+Description=NodeExporter
+
+[Service]
+TimeoutStartSec=0
+ExecStart={{ dest_path}}/node_exporter
+
+[Install]
+WantedBy=multi-user.target
