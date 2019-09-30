@@ -3,7 +3,7 @@ Description=NodeExporter
 
 [Service]
 TimeoutStartSec=0
-ExecStart={{ dest_path}}/node_exporter
+ExecStart={{ dest_path }}/node_exporter --collector.textfile.directory={{ textfile_path }}
 
 [Install]
 WantedBy=multi-user.target
