@@ -1,8 +1,10 @@
 - hosts: all
+  become: true
 
   vars:
     version: 0.18.1
     dest_path: /opt/node_exporter
+    textfile_path: /var/lib/node_exporter
 
   tasks:
     - name: Find ARM version
@@ -28,6 +30,37 @@
         path: "{{ dest_path }}"
         state: link
       when: uncompress_result is changed
+
+    - name: Create textfile collector directory
+      become: true
+      file:
+        path: "{{ textfile_path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Install Raspberry Pi CPU Temp collector
+      become: true
+      copy:
+        dest: "/usr/local/bin/raspi_temp"
+        src: files/raspi_temp
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Install moreutils
+      become: true
+      package: 
+        name: moreutils
+        state: present
+
+    - name: Ensure cronjob for Raspberry Pi CPU Temp
+      cron:
+        name: "Raspberry Pi CPU Temp"
+        minute: "*"
+        hour: "*"
+        job: "/usr/local/bin/raspi_temp | sponge {{ textfile_path }}/raspi_temp.prom"
 
     - name: Create systemd unit
       become: true

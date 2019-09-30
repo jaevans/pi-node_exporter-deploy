@@ -1,0 +1,12 @@
+#!/usr/bin/python3
+
+ZONE_TEMP='/sys/class/thermal/thermal_zone0/temp'
+
+print('# HELP node_thermal_zone_temp Tempatures from /sys/class/thermal')
+print('# TYPE node_thermal_zone_temp gauge')
+
+with open(ZONE_TEMP, 'r') as f:
+    millitemp = int(f.readline())
+temp = millitemp / 1000.0
+print(f'node_thermal_zone_temp{{zone="0"}} {temp}')
+
