@@ -2,31 +2,34 @@
   become: true
 
   vars:
-    version: 0.18.1
+    version: 1.0.1
     dest_path: /opt/node_exporter
     textfile_path: /var/lib/node_exporter
 
   tasks:
-    - name: Find ARM version
+    - name: Find Current Architecture version for ARM
       set_fact:
-        arm_version: "{{ ansible_facts.architecture | regex_replace('(.*)l$', '\\1') }}"
+        my_arch: "{{ ansible_facts.architecture | regex_replace('(.*)l$', '\\1') }}"
+      when: "'arm' in ansible_facts.architecture"
         
-    - debug:
-        var: arm_version
-    
+    - name: Set my arch for non x86_64
+      set_fact:
+        my_arch: amd64
+      when: "'x86_64' in ansible_facts.architecture"
+
     - name: Uncompress Node Exporter
       become: true
       unarchive:
         remote_src: true
-        src: https://github.com/prometheus/node_exporter/releases/download/v{{ version }}/node_exporter-{{ version }}.linux-{{ arm_version }}.tar.gz
+        src: https://github.com/prometheus/node_exporter/releases/download/v{{ version }}/node_exporter-{{ version }}.linux-{{ my_arch }}.tar.gz
         dest: /opt/
-        creates: /opt/node_exporter-{{ version }}.linux-{{ arm_version }}
+        creates: /opt/node_exporter-{{ version }}.linux-{{ my_arch }}
       register: uncompress_result
       
     - name: Create versionless symlink
       become: true
       file:
-        src: /opt/node_exporter-{{ version }}.linux-{{ arm_version }}
+        src: /opt/node_exporter-{{ version }}.linux-{{ my_arch }}
         path: "{{ dest_path }}"
         state: link
       when: uncompress_result is changed
@@ -39,6 +42,7 @@
         owner: root
         group: root
         mode: '0755'
+      when: "'arm' in ansible_facts.architecture"
 
     - name: Install Raspberry Pi CPU Temp collector
       become: true
@@ -48,12 +52,14 @@
         owner: root
         group: root
         mode: '0755'
+      when: "'arm' in ansible_facts.architecture"
 
     - name: Install moreutils
       become: true
       package: 
         name: moreutils
         state: present
+      when: "'arm' in ansible_facts.architecture"
 
     - name: Ensure cronjob for Raspberry Pi CPU Temp
       cron:
@@ -61,6 +67,7 @@
         minute: "*"
         hour: "*"
         job: "/usr/local/bin/raspi_temp | sponge {{ textfile_path }}/raspi_temp.prom"
+      when: "'arm' in ansible_facts.architecture"
 
     - name: Create systemd unit
       become: true
@@ -86,3 +93,11 @@
         enabled: true
       when: (system_register is changed) or (uncompress_result is changed)
 
+    - name: Add service to firewall
+      become: true
+      firewalld:
+        immediate: true
+        permanent: true
+        port: "9100/tcp"
+        state: enabled
+      when: "'RedHat' in ansible_facts.os_family"

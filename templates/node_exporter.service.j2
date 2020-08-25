@@ -3,7 +3,7 @@ Description=NodeExporter
 
 [Service]
 TimeoutStartSec=0
-ExecStart={{ dest_path }}/node_exporter --collector.textfile.directory={{ textfile_path }}
+ExecStart={{ dest_path }}/node_exporter {% if 'arm' in my_arch %}--collector.textfile.directory={{ textfile_path }}{% else %}{% endif %}
 
 [Install]
 WantedBy=multi-user.target
